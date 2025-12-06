@@ -1,0 +1,6 @@
+name: Floorplan Card
+description: A Lovelace card for rendering 2D floorplans with room boundaries and entity positions
+homeassistant:
+  min_version: "2024.1.0"
+content_in_root: false
+render_readme: true
