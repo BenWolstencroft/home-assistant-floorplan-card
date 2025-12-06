@@ -16,6 +16,7 @@ on:
       - 'package.json'
       - 'tsconfig.json'
       - 'vite.config.ts'
+  workflow_dispatch:
 
 jobs:
   install:
