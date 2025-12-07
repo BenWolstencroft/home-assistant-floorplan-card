@@ -10,11 +10,8 @@ export default defineConfig({
       fileName: (format) => `floorplan-card.js`,
     },
     rollupOptions: {
-      external: ['lit', 'lit/decorators.js'],
       output: {
-        globals: {
-          lit: 'lit',
-        },
+        inlineDynamicImports: true,
       },
     },
   },
