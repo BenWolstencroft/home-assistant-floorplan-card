@@ -112,8 +112,8 @@ export class FloorplanCard extends LitElement {
   protected willUpdate(changedProperties: Map<string, any>): void {
     super.willUpdate(changedProperties);
     
-    // Reload data when hass changes (for live updates)
-    if (changedProperties.has('hass') && this.hass && this.config) {
+    // Reload data when hass changes (for live updates) - but only after initial load
+    if (changedProperties.has('hass') && this.hass && this.config && this.floorData) {
       this.loadFloorplanData();
     }
   }
@@ -121,24 +121,44 @@ export class FloorplanCard extends LitElement {
   private async loadFloorplanData(): Promise<void> {
     if (!this.hass || !this.config) return;
 
-    this.loading = true;
+    // Only show loading on first load
+    const isFirstLoad = !this.floorData;
+    if (isFirstLoad) {
+      this.loading = true;
+    }
+    
     this.error = undefined;
 
     try {
-      const response = await this.hass.callService(
+      // Fetch rooms for the configured floor
+      const roomsResponse = await this.hass.callService(
+        this.config.service_domain || 'floorplan',
+        'get_rooms_by_floor',
+        {
+          floor_id: this.config.floor_id || 'ground_floor'
+        }
+      );
+
+      // Fetch entity coordinates
+      const coordsResponse = await this.hass.callService(
         this.config.service_domain || 'floorplan',
         'get_all_entity_coordinates',
         {}
       );
 
-      // For now, we just store the response
-      // In a real implementation, we'd parse the floorplan structure
-      this.floorData = response;
+      // Combine the data
+      this.floorData = {
+        rooms: roomsResponse.rooms || [],
+        entity_coordinates: coordsResponse.entity_coordinates || {},
+        beacon_nodes: coordsResponse.beacon_nodes || {}
+      };
     } catch (err) {
       this.error = `Failed to load floorplan data: ${err}`;
       console.error('Floorplan card error:', err);
     } finally {
-      this.loading = false;
+      if (isFirstLoad) {
+        this.loading = false;
+      }
     }
   }
 
@@ -147,7 +167,7 @@ export class FloorplanCard extends LitElement {
       return html`<div class="error">Card not configured</div>`;
     }
 
-    if (this.loading) {
+    if (this.loading && !this.floorData) {
       return html`<div class="loading">Loading floorplan...</div>`;
     }
 
@@ -195,46 +215,102 @@ export class FloorplanCard extends LitElement {
     canvas.height = container.clientHeight;
 
     // Clear canvas
-    ctx.fillStyle = 'var(--surface-variant)';
+    ctx.fillStyle = '#f5f5f5';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Render rooms (placeholder for now)
-    this.drawSampleRooms(ctx, canvas.width, canvas.height);
+    // Render rooms from integration data
+    this.drawRoomsFromData(ctx, canvas.width, canvas.height);
   }
 
-  private drawSampleRooms(
+  private drawRoomsFromData(
     ctx: CanvasRenderingContext2D,
-    width: number,
-    height: number
+    canvasWidth: number,
+    canvasHeight: number
   ): void {
-    // Sample rooms for demonstration
-    const rooms = [
-      { name: 'Living Room', x: 50, y: 50, w: 150, h: 120, color: '#e0e0e0' },
-      { name: 'Kitchen', x: 210, y: 50, w: 120, h: 120, color: '#f5f5f5' },
-      { name: 'Bedroom', x: 50, y: 190, w: 140, h: 100, color: '#fffde7' },
-      { name: 'Bathroom', x: 210, y: 190, w: 80, h: 100, color: '#e1f5fe' },
+    if (!this.floorData?.rooms || this.floorData.rooms.length === 0) {
+      // Show message if no rooms
+      ctx.fillStyle = '#999';
+      ctx.font = '16px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(
+        'No rooms configured for this floor',
+        canvasWidth / 2,
+        canvasHeight / 2
+      );
+      return;
+    }
+
+    // Calculate bounds to fit all rooms
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    
+    this.floorData.rooms.forEach((room: any) => {
+      room.boundaries.forEach(([x, y]: [number, number]) => {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      });
+    });
+
+    // Add padding
+    const padding = 20;
+    const dataWidth = maxX - minX;
+    const dataHeight = maxY - minY;
+    const scale = Math.min(
+      (canvasWidth - 2 * padding) / dataWidth,
+      (canvasHeight - 2 * padding) / dataHeight
+    );
+
+    // Transform coordinates to canvas space
+    const transform = (x: number, y: number): [number, number] => [
+      (x - minX) * scale + padding,
+      (y - minY) * scale + padding
     ];
 
-    rooms.forEach((room) => {
-      // Draw room background
-      ctx.fillStyle = room.color;
-      ctx.fillRect(room.x, room.y, room.w, room.h);
+    // Draw each room
+    const colors = ['#e3f2fd', '#f3e5f5', '#e8f5e9', '#fff3e0', '#fce4ec'];
+    
+    this.floorData.rooms.forEach((room: any, index: number) => {
+      const boundaries = room.boundaries;
+      if (!boundaries || boundaries.length === 0) return;
+
+      // Draw room polygon
+      ctx.beginPath();
+      const [startX, startY] = transform(boundaries[0][0], boundaries[0][1]);
+      ctx.moveTo(startX, startY);
+      
+      for (let i = 1; i < boundaries.length; i++) {
+        const [x, y] = transform(boundaries[i][0], boundaries[i][1]);
+        ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+
+      // Fill room
+      ctx.fillStyle = colors[index % colors.length];
+      ctx.fill();
 
       // Draw room border
       ctx.strokeStyle = '#999';
       ctx.lineWidth = 2;
-      ctx.strokeRect(room.x, room.y, room.w, room.h);
+      ctx.stroke();
+
+      // Calculate center for label
+      let centerX = 0, centerY = 0;
+      boundaries.forEach(([x, y]: [number, number]) => {
+        const [tx, ty] = transform(x, y);
+        centerX += tx;
+        centerY += ty;
+      });
+      centerX /= boundaries.length;
+      centerY /= boundaries.length;
 
       // Draw room label
       ctx.fillStyle = '#333';
       ctx.font = 'bold 14px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(
-        room.name,
-        room.x + room.w / 2,
-        room.y + room.h / 2
-      );
+      ctx.fillText(room.name, centerX, centerY);
     });
   }
 }
