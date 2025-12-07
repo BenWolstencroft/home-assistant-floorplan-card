@@ -20,7 +20,7 @@ export type { FloorplanConfig, Room, RoomData, FloorData } from './types';
 });
 
 console.info(
-  `%c FLOORPLAN-CARD %c v0.2.0 `,
+  `%c FLOORPLAN-CARD %c v0.2.1 `,
   'color: white; background: #1976d2; font-weight: 700;',
   'color: #1976d2; background: white; font-weight: 700;'
 );

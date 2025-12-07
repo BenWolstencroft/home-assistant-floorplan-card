@@ -145,6 +145,8 @@ export class FloorplanCard extends LitElement {
         }
       );
 
+      console.log('Rooms response:', roomsResponse);
+
       // Fetch entity coordinates
       const coordsResponse = await this.hass.callService(
         this.config.service_domain || 'floorplan',
@@ -152,12 +154,16 @@ export class FloorplanCard extends LitElement {
         {}
       );
 
+      console.log('Coords response:', coordsResponse);
+
       // Combine the data
       this.floorData = {
         rooms: roomsResponse.rooms || [],
         entity_coordinates: coordsResponse.entity_coordinates || {},
         beacon_nodes: coordsResponse.beacon_nodes || {}
       };
+
+      console.log('Floor data:', this.floorData);
     } catch (err) {
       this.error = `Failed to load floorplan data: ${err}`;
       console.error('Floorplan card error:', err);
