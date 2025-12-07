@@ -1,7 +1,7 @@
 {
   "name": "home-assistant-floorplan-card",
   "description": "Home Assistant Lovelace card for displaying 3D floorplans",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "main": "dist/floorplan-card.js",
   "scripts": {

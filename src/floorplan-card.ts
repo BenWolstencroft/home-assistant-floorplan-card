@@ -27,6 +27,13 @@ export class FloorplanCard extends LitElement {
     };
   }
 
+  public setConfig(config: FloorplanCardConfig): void {
+    if (!config) {
+      throw new Error('Invalid configuration');
+    }
+    this.config = config;
+  }
+
   static get styles() {
     return css`
       :host {
