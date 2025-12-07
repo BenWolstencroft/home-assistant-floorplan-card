@@ -8,6 +8,7 @@ interface FloorplanCardConfig extends LovelaceCardConfig {
   title?: string;
   floor_id?: string;
   service_domain?: string;
+  full_width?: boolean;
 }
 
 @customElement('floorplan-card')
@@ -24,6 +25,7 @@ export class FloorplanCard extends LitElement {
       title: 'Floorplan',
       floor_id: 'ground_floor',
       service_domain: 'floorplan',
+      full_width: false,
     };
   }
 
@@ -31,7 +33,23 @@ export class FloorplanCard extends LitElement {
     if (!config) {
       throw new Error('Invalid configuration');
     }
+    if (!config.type) {
+      throw new Error('Card type is required');
+    }
     this.config = config;
+    
+    // Set layout attribute for full width support
+    if (config.full_width) {
+      this.setAttribute('layout', 'full-width');
+    } else {
+      this.removeAttribute('layout');
+    }
+  }
+
+  public getCardSize(): number {
+    // Return the number of grid rows the card should occupy
+    // 1 row = approximately 50px in height
+    return 5;
   }
 
   static get styles() {
@@ -48,9 +66,6 @@ export class FloorplanCard extends LitElement {
       }
 
       .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
         margin-bottom: 16px;
       }
 
@@ -58,20 +73,6 @@ export class FloorplanCard extends LitElement {
         font-size: 20px;
         font-weight: 500;
         color: var(--primary-text-color);
-      }
-
-      .floor-selector {
-        display: flex;
-        gap: 8px;
-      }
-
-      select {
-        padding: 8px 12px;
-        border: 1px solid var(--divider-color);
-        border-radius: 4px;
-        background: var(--ha-card-background);
-        color: var(--primary-text-color);
-        cursor: pointer;
       }
 
       .canvas-container {
@@ -106,6 +107,15 @@ export class FloorplanCard extends LitElement {
 
   protected firstUpdated(): void {
     this.loadFloorplanData();
+  }
+
+  protected willUpdate(changedProperties: Map<string, any>): void {
+    super.willUpdate(changedProperties);
+    
+    // Reload data when hass changes (for live updates)
+    if (changedProperties.has('hass') && this.hass && this.config) {
+      this.loadFloorplanData();
+    }
   }
 
   private async loadFloorplanData(): Promise<void> {
@@ -149,13 +159,6 @@ export class FloorplanCard extends LitElement {
       <div class="card">
         <div class="header">
           <div class="title">${this.config.title || 'Floorplan'}</div>
-          <div class="floor-selector">
-            <select @change="${this.onFloorChange}">
-              <option value="ground_floor">Ground Floor</option>
-              <option value="1st_floor">1st Floor</option>
-              <option value="basement">Basement</option>
-            </select>
-          </div>
         </div>
 
         <div class="canvas-container">
