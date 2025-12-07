@@ -23,8 +23,6 @@
         "argsIgnorePattern": "^_"
       }
     ],
-    "@typescript-eslint/explicit-function-return-types": "warn",
-    "@typescript-eslint/explicit-module-boundary-types": "off",
     "@typescript-eslint/no-explicit-any": "warn",
     "no-console": [
       "warn",
