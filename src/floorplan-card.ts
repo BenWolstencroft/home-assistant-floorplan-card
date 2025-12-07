@@ -2,7 +2,7 @@ import { LitElement, html, css, TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { HomeAssistant, LovelaceCardConfig } from 'custom-card-helpers';
 import { RoomRenderer } from './components/room-renderer';
-import { FloorplanConfig } from './types';
+import { FloorplanConfig, Room } from './types';
 
 interface FloorplanCardConfig extends LovelaceCardConfig {
   title?: string;
@@ -11,11 +11,17 @@ interface FloorplanCardConfig extends LovelaceCardConfig {
   full_width?: boolean;
 }
 
+interface CardFloorplanData {
+  rooms: Room[];
+  entity_coordinates: Record<string, [number, number, number]>;
+  beacon_nodes: Record<string, [number, number, number]>;
+}
+
 @customElement('floorplan-card')
 export class FloorplanCard extends LitElement {
   @property({ attribute: false }) public hass?: HomeAssistant;
   @property({ type: Object }) public config?: FloorplanCardConfig;
-  @state() private floorData?: FloorplanConfig;
+  @state() private floorData?: CardFloorplanData;
   @state() private loading = false;
   @state() private error?: string;
 
@@ -192,12 +198,6 @@ export class FloorplanCard extends LitElement {
     if (this.floorData) {
       this.renderFloorplan();
     }
-  }
-
-  private onFloorChange(event: Event): void {
-    const select = event.target as HTMLSelectElement;
-    const floorId = select.value;
-    // TODO: Update floor view
   }
 
   private renderFloorplan(): void {
