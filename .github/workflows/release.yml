@@ -49,10 +49,6 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF#refs/tags/card-v}" >> $GITHUB_OUTPUT
 
-      - name: Update package version
-        run: |
-          npm version --no-git-tag-v ${{ steps.version.outputs.version }}
-
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
