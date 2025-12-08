@@ -140,7 +140,9 @@ export class FloorplanCard extends LitElement {
       const roomsResponse = await this.hass.callService(
         this.config.service_domain || 'floorplan',
         'get_rooms_by_floor',
-        { floor_id: this.config.floor_id || 'ground_floor' },
+        {
+          floor_id: this.config.floor_id || 'ground_floor'
+        },
         { return_response: true }
       );
 
