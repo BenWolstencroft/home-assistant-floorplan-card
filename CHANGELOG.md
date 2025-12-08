@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.9] - 2025-12-08
+
+### Added
+- Automatic dark theme support with theme detection
+- Theme-aware color palette for all visual elements (background, rooms, borders, text, beacons)
+- Dual detection method using Home Assistant's themes.darkMode property with fallback to theme name matching
+- Darker background (#1a1a1a) and adjusted room colors for dark themes
+- Lighter beacon colors (#66BB6A) and improved contrast for dark mode
+- **`theme` configuration option** to override automatic theme detection (`'auto'`, `'light'`, or `'dark'`)
+
+### Changed
+- Canvas background color adapts to user's theme (light: #f5f5f5, dark: #1a1a1a)
+- Room colors optimized for both light and dark themes
+- Text colors automatically adjust for better readability (#e0e0e0 in dark, #333 in light)
+- Border colors reduce eye strain in dark mode (#555 vs #999)
+- Theme detection now respects user's manual override when `theme` is set in card config
+
+## [0.2.8] - 2025-12-08
+
+### Added
+- Automatic text wrapping for room name labels that don't fit within room boundaries
+- Smart word-based line breaking with 20px padding from room edges
+- Multi-line label support with proper vertical centering
+
+### Changed
+- Room labels now wrap across multiple lines when room width is too narrow
+- Text wrapping works correctly with canvas rotation
+
+## [0.2.7] - 2025-12-08
+
+### Added
+- Beacon node friendly names displayed from Home Assistant device registry
+- Support for new beacon data format with `coordinates` and `name` fields
+
+### Changed
+- Beacon labels now show device friendly names when available (from HA device registry)
+- Falls back to MAC address display (last 4 chars) if no friendly name found
+- Maintains backward compatibility with old beacon data format (plain coordinate arrays)
+
+## [0.2.6] - 2025-12-08
+
+### Changed
+- Canvas aspect ratio changed from 16:10 to 1:1 (square) for better floorplan visualization
+
+## [0.2.5] - 2025-12-08
+
+### Added
+- Beacon node visualization on floorplan (green circles with MAC address labels)
+- Beacon nodes display last 4 characters of MAC address for easy identification
+- Counter-rotated labels for beacon nodes to maintain readability at any rotation angle
+- Floor-specific beacon filtering based on floor range (min to ceiling height)
+
+### Fixed
+- Beacon nodes now only appear on the floor they belong to, not on all floors
+- Corrected floor filtering logic: beacons shown if Z >= floor_min_height and Z < floor_height
+- Floor height represents ceiling of floor, not floor level (e.g., ground=2.4m means 0-2.4m range)
+
+## [0.2.3] - 2025-12-08
+
+### Added
+- `rotation` configuration option to rotate the view by degrees (0-360)
+- Canvas rotation transform around center point
+
+### Changed
+- Wall thickness scaled to 0.1m in real-world coordinates (0.1 * scale pixels)
+
 ## [0.2.2] - 2025-12-08
 
 ### Fixed
