@@ -13,7 +13,8 @@ declare module 'custom-card-helpers' {
     callService(
       domain: string,
       service: string,
-      serviceData?: Record<string, any>
+      serviceData?: Record<string, any>,
+      options?: { return_response?: boolean }
     ): Promise<any>;
 
     states: {
