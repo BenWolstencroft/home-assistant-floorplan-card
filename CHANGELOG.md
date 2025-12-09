@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-12-08
+
+### Added
+- **Bermuda BLE moving entity tracking** - Real-time rendering of tracked devices on floorplan
+- New `MovingEntityData` interface for entity metadata (coordinates, confidence, last_updated)
+- Automatic fetching of moving entity coordinates from `get_all_moving_entity_coordinates` service
+- Visual differentiation: moving entities as blue/purple circles (8px) vs green beacon nodes (6px)
+- Always-visible labels for moving entities showing friendly names from Home Assistant
+- Floor height filtering for moving entities (only show entities on current floor)
+- Theme-aware colors for moving entities (blue #2196F3 in light mode, purple #9C27B0 in dark mode)
+
+### Changed
+- Canvas rotation now correctly transforms mouse coordinates for beacon hover detection
+- Room label contrast reduced for better readability (#999/#666 instead of #e0e0e0/#333)
+- Room labels no longer bold
+
+### Fixed
+- Beacon hover detection now works correctly with canvas rotation applied
+- Mouse coordinate scaling accounts for CSS display size vs canvas internal dimensions
+- Inverse rotation applied to mouse coordinates before collision detection
+
 ## [0.2.9] - 2025-12-08
 
 ### Added

@@ -18,10 +18,17 @@ interface BeaconNodeData {
   name?: string; // Friendly name from device registry
 }
 
+interface MovingEntityData {
+  coordinates: [number, number, number];
+  confidence?: number;
+  last_updated?: string;
+}
+
 interface CardFloorplanData {
   rooms: Room[];
   entity_coordinates: Record<string, [number, number, number]>;
   beacon_nodes: Record<string, BeaconNodeData | [number, number, number]>; // Support both old and new format
+  moving_entities: Record<string, MovingEntityData>; // Bermuda-tracked entities
   floor_height: number; // Ceiling height of this floor
   floor_min_height: number; // Ceiling height of floor below (or 0 for ground floor)
 }
@@ -34,6 +41,7 @@ export class FloorplanCard extends LitElement {
   @state() private loading = false;
   @state() private error?: string;
   @state() private hoveredBeacon: string | null = null;
+  @state() private hoveredMovingEntity: string | null = null;
 
   static getStubConfig(): FloorplanCardConfig {
     return {
@@ -307,11 +315,21 @@ export class FloorplanCard extends LitElement {
         return_response: true
       });
 
+      // Fetch moving entity coordinates (Bermuda-tracked)
+      const movingResponse = await this.hass.callWS({
+        type: 'call_service',
+        domain: this.config.service_domain || 'floorplan',
+        service: 'get_all_moving_entity_coordinates',
+        service_data: {},
+        return_response: true
+      });
+
       // Combine the data - WebSocket responses have data in 'response' property
       this.floorData = {
         rooms: roomsResponse.response?.rooms || [],
         entity_coordinates: coordsResponse.response?.entity_coordinates || {},
         beacon_nodes: coordsResponse.response?.beacon_nodes || {},
+        moving_entities: movingResponse.response?.moving_entities || {},
         floor_height: roomsResponse.response?.floor_height ?? 0.0,
         floor_min_height: roomsResponse.response?.floor_min_height ?? 0.0
       };
@@ -724,6 +742,143 @@ export class FloorplanCard extends LitElement {
         }
       }
       } // End hover check
+    });
+
+    // Draw moving entities after beacons
+    this.drawMovingEntities(ctx, minX, minY, scale, offsetX, offsetY, transform);
+  }
+
+  private drawMovingEntities(
+    ctx: CanvasRenderingContext2D,
+    minX: number,
+    minY: number,
+    scale: number,
+    offsetX: number,
+    offsetY: number,
+    transform: (x: number, y: number) => [number, number]
+  ): void {
+    if (!this.floorData?.moving_entities) return;
+
+    const rotation = this.config?.rotation || 0;
+    const floorCeilingHeight = this.floorData.floor_height;
+    const floorMinHeight = this.floorData.floor_min_height;
+    
+    // Filter moving entities to only show those on this floor
+    const movingEntries = Object.entries(this.floorData.moving_entities).filter(
+      ([_, data]) => {
+        const coords = data.coordinates;
+        if (!coords || coords.length !== 3) return false;
+        const [x, y, z] = coords;
+        return z >= floorMinHeight && z < floorCeilingHeight;
+      }
+    );
+    
+    const isDark = this.isDarkTheme();
+    
+    movingEntries.forEach(([entityId, data]) => {
+      const coords = data.coordinates;
+      const [x, y, z] = coords;
+      const [canvasX, canvasY] = transform(x, y);
+
+      // Get friendly name from Home Assistant state
+      const state = this.hass?.states[entityId];
+      const friendlyName = state?.attributes?.friendly_name || entityId;
+
+      // Draw moving entity as a larger circle - blue/purple theme
+      const radius = 8;
+      
+      // Draw outer circle - blue in light, purple in dark
+      ctx.beginPath();
+      ctx.arc(canvasX, canvasY, radius, 0, 2 * Math.PI);
+      ctx.fillStyle = isDark ? '#9C27B0' : '#2196F3'; // Purple in dark, blue in light
+      ctx.fill();
+      ctx.strokeStyle = isDark ? '#7B1FA2' : '#1976D2'; // Darker borders
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Draw inner dot
+      ctx.beginPath();
+      ctx.arc(canvasX, canvasY, radius / 3, 0, 2 * Math.PI);
+      ctx.fillStyle = isDark ? '#1a1a1a' : '#fff';
+      ctx.fill();
+
+      // Draw label (always visible for moving entities)
+      const labelOffset = radius + 12;
+      const labelColor = isDark ? '#9C27B0' : '#1976D2';
+      
+      ctx.fillStyle = labelColor;
+      ctx.font = '10px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+
+      const labelWidth = ctx.measureText(friendlyName).width;
+      const halfLabelWidth = labelWidth / 2;
+      const canvas = ctx.canvas;
+      const canvasWidth = canvas.width;
+
+      // Handle rotation for labels
+      if (rotation !== 0) {
+        ctx.save();
+        ctx.translate(canvasX, canvasY + labelOffset);
+        ctx.rotate((-rotation * Math.PI) / 180);
+        
+        // Check if wrapping is needed
+        if (friendlyName.includes(' ') && (canvasX - halfLabelWidth < 0 || canvasX + halfLabelWidth > canvasWidth)) {
+          const words = friendlyName.split(' ');
+          const lines: string[] = [];
+          let currentLine = words[0];
+          
+          for (let i = 1; i < words.length; i++) {
+            const testLine = currentLine + ' ' + words[i];
+            const testWidth = ctx.measureText(testLine).width;
+            
+            if (testWidth > labelWidth * 0.7) {
+              lines.push(currentLine);
+              currentLine = words[i];
+            } else {
+              currentLine = testLine;
+            }
+          }
+          lines.push(currentLine);
+          
+          const lineHeight = 12;
+          const startY = 0;
+          lines.forEach((line, i) => {
+            ctx.fillText(line, 0, startY + i * lineHeight);
+          });
+        } else {
+          ctx.fillText(friendlyName, 0, 0);
+        }
+        ctx.restore();
+      } else {
+        // Check if wrapping is needed
+        if (friendlyName.includes(' ') && (canvasX - halfLabelWidth < 0 || canvasX + halfLabelWidth > canvasWidth)) {
+          const words = friendlyName.split(' ');
+          const lines: string[] = [];
+          let currentLine = words[0];
+          
+          for (let i = 1; i < words.length; i++) {
+            const testLine = currentLine + ' ' + words[i];
+            const testWidth = ctx.measureText(testLine).width;
+            
+            if (testWidth > labelWidth * 0.7) {
+              lines.push(currentLine);
+              currentLine = words[i];
+            } else {
+              currentLine = testLine;
+            }
+          }
+          lines.push(currentLine);
+          
+          const lineHeight = 12;
+          const startY = canvasY + labelOffset;
+          lines.forEach((line, i) => {
+            ctx.fillText(line, canvasX, startY + i * lineHeight);
+          });
+        } else {
+          ctx.fillText(friendlyName, canvasX, canvasY + labelOffset);
+        }
+      }
     });
   }
 }
